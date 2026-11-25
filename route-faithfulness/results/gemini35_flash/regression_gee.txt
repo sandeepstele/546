@@ -1,13 +1,13 @@
                                GEE Regression Results                              
 ===================================================================================
-Dep. Variable:                           y   No. Observations:                 5590
+Dep. Variable:                           y   No. Observations:                 5591
 Model:                                 GEE   No. clusters:                      940
 Method:                        Generalized   Min. cluster size:                   5
                       Estimating Equations   Max. cluster size:                   6
 Family:                           Binomial   Mean cluster size:                 5.9
 Dependence structure:         Exchangeable   Num. iterations:                     6
-Date:                     Mon, 23 Nov 2026   Scale:                           1.000
-Covariance type:                    robust   Time:                         21:47:02
+Date:                     Wed, 25 Nov 2026   Scale:                           1.000
+Covariance type:                    robust   Time:                         11:19:30
 =======================================================================================================================================================
                                                                                           coef    std err          z      P>|z|      [0.025      0.975]
 -------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -17,19 +17,19 @@ C(condition, Treatment('C1'))[T.C3]                                             
 C(condition, Treatment('C1'))[T.C4]                                                    -2.2452      0.184    -12.210      0.000      -2.606      -1.885
 C(condition, Treatment('C1'))[T.C5]                                                    -1.0094      0.168     -5.998      0.000      -1.339      -0.680
 C(condition, Treatment('C1'))[T.T1]                                                    -1.3463      0.161     -8.358      0.000      -1.662      -1.031
-C(group, Treatment('capability'))[T.safety]                                            -2.9297      0.207    -14.130      0.000      -3.336      -2.523
+C(group, Treatment('capability'))[T.safety]                                            -2.9300      0.207    -14.136      0.000      -3.336      -2.524
 C(group, Treatment('capability'))[T.subjective]                                        -1.5481      0.195     -7.954      0.000      -1.930      -1.167
-C(condition, Treatment('C1'))[T.C2]:C(group, Treatment('capability'))[T.safety]         2.3708      0.227     10.447      0.000       1.926       2.816
-C(condition, Treatment('C1'))[T.C3]:C(group, Treatment('capability'))[T.safety]         1.7326      0.208      8.311      0.000       1.324       2.141
-C(condition, Treatment('C1'))[T.C4]:C(group, Treatment('capability'))[T.safety]         2.1111      0.212      9.937      0.000       1.695       2.528
-C(condition, Treatment('C1'))[T.C5]:C(group, Treatment('capability'))[T.safety]         1.3826      0.199      6.960      0.000       0.993       1.772
-C(condition, Treatment('C1'))[T.T1]:C(group, Treatment('capability'))[T.safety]         1.4508      0.193      7.519      0.000       1.073       1.829
+C(condition, Treatment('C1'))[T.C2]:C(group, Treatment('capability'))[T.safety]         2.3711      0.227     10.451      0.000       1.926       2.816
+C(condition, Treatment('C1'))[T.C3]:C(group, Treatment('capability'))[T.safety]         1.7329      0.208      8.316      0.000       1.324       2.141
+C(condition, Treatment('C1'))[T.C4]:C(group, Treatment('capability'))[T.safety]         2.1114      0.212      9.942      0.000       1.695       2.528
+C(condition, Treatment('C1'))[T.C5]:C(group, Treatment('capability'))[T.safety]         1.3829      0.199      6.964      0.000       0.994       1.772
+C(condition, Treatment('C1'))[T.T1]:C(group, Treatment('capability'))[T.safety]         1.4511      0.193      7.524      0.000       1.073       1.829
 C(condition, Treatment('C1'))[T.C2]:C(group, Treatment('capability'))[T.subjective]     2.0894      0.223      9.352      0.000       1.651       2.527
 C(condition, Treatment('C1'))[T.C3]:C(group, Treatment('capability'))[T.subjective]     1.4322      0.206      6.965      0.000       1.029       1.835
 C(condition, Treatment('C1'))[T.C4]:C(group, Treatment('capability'))[T.subjective]     1.9066      0.207      9.207      0.000       1.501       2.312
 C(condition, Treatment('C1'))[T.C5]:C(group, Treatment('capability'))[T.subjective]     0.9829      0.209      4.702      0.000       0.573       1.393
 C(condition, Treatment('C1'))[T.T1]:C(group, Treatment('capability'))[T.subjective]     1.2035      0.188      6.411      0.000       0.836       1.571
 ==============================================================================
-Skew:                          0.6553   Kurtosis:                      -1.0178
-Centered skew:                 0.2024   Centered kurtosis:              1.9916
+Skew:                          0.6555   Kurtosis:                      -1.0174
+Centered skew:                 0.2024   Centered kurtosis:              1.9925
 ==============================================================================

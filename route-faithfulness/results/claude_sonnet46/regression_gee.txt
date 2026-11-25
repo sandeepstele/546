@@ -6,8 +6,8 @@ Method:                        Generalized   Min. cluster size:                 
                       Estimating Equations   Max. cluster size:                   6
 Family:                           Binomial   Mean cluster size:                 6.0
 Dependence structure:         Exchangeable   Num. iterations:                     4
-Date:                     Mon, 23 Nov 2026   Scale:                           1.000
-Covariance type:                    robust   Time:                         21:47:01
+Date:                     Wed, 25 Nov 2026   Scale:                           1.000
+Covariance type:                    robust   Time:                         11:19:28
 =======================================================================================================================================================
                                                                                           coef    std err          z      P>|z|      [0.025      0.975]
 -------------------------------------------------------------------------------------------------------------------------------------------------------
