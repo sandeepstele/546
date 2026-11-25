@@ -1,0 +1,5 @@
+[00:21:27] llama8b on g2-standard-12 (1 x NVIDIA_L4) in us-central1; hard stop in 4 h.
+[00:21:27] Deploying meta/llama3_1@llama-3.1-8b-instruct
+Using endpoint [https://us-central1-aiplatform.googleapis.com/]
+ERROR: (gcloud.ai.model-garden.models.deploy) The machine type, accelerator type and/or container image URI is not supported by the model. You can use `gcloud alpha/beta ai model-garden models list-deployment-config` command to find the supported configurations
+[00:21:28] TEARDOWN OK: no endpoints named route-llama31-8b* remain.
