@@ -231,7 +231,9 @@ Code freeze Tuesday 12:00. If an open model is not working by Tuesday 10:00, shi
   ```
   For Gemma, check its model card for the right `--tool-call-parser`.
 - **Thinking output detected**: thinking must be off so all routes are compared without reasoning. On vLLM use `chat_template_kwargs: {enable_thinking: false}`; on OpenRouter use `reasoning: {enabled: false}`. The runner strips any `<think>` text from answers either way.
-- **Rate limits**: lower `run.concurrency` (e.g. 4) and rerun; finished rows are kept.
+- **Rate limits**: lower `run.concurrency` (e.g. 4) and rerun; finished rows are kept. If the model has a fixed requests-per-minute quota, set `max_rpm` on its entry in `config.yaml` (see `mistral_small31`): requests are then paced under the quota instead of being rejected.
+- **Is the run complete?** `python -m src.check --models <model>` counts answered, errored, missing and judged documents per condition, and exits 1 while a rerun can still fill something in.
+- **Will the model start at all?** `python -m src.ping <model> judge` sends one real request to each and prints the error if it fails.
 - **Start a condition over**: delete `outputs/raw/<model>/<condition>.jsonl` and `outputs/judged/<model>/<condition>.jsonl`.
 
 ## 8. Project layout
@@ -246,6 +248,8 @@ src/llm.py               async client: OpenAI-compatible APIs, Vertex AI (gcloud
 src/llm_anthropic.py     Claude API / Claude on Vertex through the Anthropic SDK (same interface)
 notebooks/vertex_setup_and_run.ipynb   setup, smoke test and full run for Claude API + Vertex AI
 src/run.py               runs conditions for one model (resumable)
+src/ping.py              one test request per model, before a long run
+src/check.py             completeness: answered / errored / missing / judged per condition
 src/judge.py             LLM judge, B1-B8 + O/E, blind to route
 src/events.py            route-event labels R0-R5
 src/analyze.py           metrics, bootstrap CIs, McNemar, GEE, figures, summary.md

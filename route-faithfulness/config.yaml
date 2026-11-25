@@ -156,6 +156,59 @@ models:
     base_url: http://localhost:8000/v1
     api_key_env: VLLM_API_KEY
 
+  # --- Open-weights models, pay-per-token on Vertex AI (no deployment). Auth: gcloud ADC.
+  # Probed 2026-11-25: temperature 0 accepted, tool calls work, no reasoning in the reply.
+  gemma4_26b:
+    provider: vertex_openai
+    model: google/gemma-4-26b-a4b-it-maas      # Google, Gemma 4 26B MoE (4B active)
+    location: global
+    project_env: GOOGLE_CLOUD_PROJECT
+
+  deepseek_v41_flash:
+    provider: vertex_openai
+    model: deepseek-ai/deepseek-v4.1-flash-maas
+    location: global
+    project_env: GOOGLE_CLOUD_PROJECT
+
+  # Mistral is a partner model: enabled once in Model Garden, served only in europe-west4 for this
+  # project, and only at :rawPredict (not the openapi endpoint). It takes 9-character alphanumeric
+  # tool-call ids, so the harness-written T1 call gets one.
+  mistral_small31:
+    provider: vertex_openai
+    raw_predict: mistralai
+    model: mistral-small-2503                   # Mistral Small 3.1 (25.03), 24B
+    location: europe-west4
+    project_env: GOOGLE_CLOUD_PROJECT
+    injected_tool_call_extra: {id: t1readdoc}
+    # This project's quota for the model is 60 requests/min (and 200k tokens/min) in europe-west4.
+    # max_rpm paces requests just under it, so calls are not rejected with 429 and rows are not lost
+    # to used-up retries. A full run (about 13,200 requests) therefore takes about 4 hours, whatever
+    # the concurrency. Raise this if the quota is raised.
+    max_rpm: 58
+
+  # Spare third family if Mistral misbehaves: GLM-5.2 reasons by default; this turns it off (verified).
+  glm52:
+    provider: vertex_openai
+    model: zai-org/glm-5.2-maas
+    location: global
+    project_env: GOOGLE_CLOUD_PROJECT
+    extra_body: {chat_template_kwargs: {enable_thinking: false}}
+
+  # Same pair self-deployed on Vertex AI Model Garden (vLLM, billed per hour), us-central1.
+  # scripts/vertex_deploy_run_teardown.sh deploys, exports the endpoint URL, runs, and deletes it.
+  # Both use one vLLM image and the llama3_json tool parser, like the DeltaAI script.
+  llama31_8b_vertex:
+    provider: vertex_openai
+    model: meta-llama/Llama-3.1-8B-Instruct
+    base_url_env: VERTEX_LLAMA31_8B_URL
+    project_env: GOOGLE_CLOUD_PROJECT
+
+  llama31_70b_vertex:
+    provider: vertex_openai
+    model: meta-llama/Llama-3.1-70B-Instruct
+    base_url_env: VERTEX_LLAMA31_70B_URL
+    project_env: GOOGLE_CLOUD_PROJECT
+
 judge:
   # gpt-oss-120b on Vertex AI (same judge model as the earlier Groq setup; neither tested model).
   # Auth: gcloud ADC, like gemini35_flash.

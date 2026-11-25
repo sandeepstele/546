@@ -15,6 +15,7 @@ import json
 import os
 import random
 import re
+import time
 
 THINK_RE = re.compile(r"<think>.*?</think>", re.S)
 
@@ -45,6 +46,25 @@ class _VertexToken:
             return self.creds.token
 
 
+class _Pacer:
+    """Spaces out request starts for a model with a requests-per-minute quota (`max_rpm` in config.yaml).
+    Without it every worker hits the quota at once, most calls come back 429, and a row that uses up
+    its retries is logged as an error. Retries are paced too, so the total never exceeds max_rpm."""
+
+    def __init__(self, rpm: float):
+        self.interval = 60.0 / float(rpm)
+        self.next_at = 0.0
+        self.lock = asyncio.Lock()
+
+    async def wait(self) -> None:
+        async with self.lock:
+            now = time.monotonic()
+            at = max(now, self.next_at)
+            self.next_at = at + self.interval
+        if at > now:
+            await asyncio.sleep(at - now)
+
+
 def vertex_openai_base_url(project: str, location: str) -> str:
     host = "aiplatform.googleapis.com" if location == "global" else f"{location}-aiplatform.googleapis.com"
     return f"https://{host}/v1/projects/{project}/locations/{location}/endpoints/openapi"
@@ -58,6 +78,10 @@ class LLM:
         self.mock = mock
         self.provider = model_cfg.get("provider", "openai")
         self.backend = None  # set for providers that do not use the OpenAI SDK
+        self.pacer = _Pacer(model_cfg["max_rpm"]) if model_cfg.get("max_rpm") and not mock else None
+        # A paced model retries only in _retry, where every attempt waits its turn; the SDK's own
+        # immediate retries would go around the pacer.
+        sdk_retries = {"max_retries": 0} if self.pacer else {}
         if mock:
             from .mock import MockClient
 
@@ -74,8 +98,34 @@ class LLM:
                 or token.project
             if not project:
                 raise SystemExit("Vertex AI needs a project: set GOOGLE_CLOUD_PROJECT in .env")
-            base = vertex_openai_base_url(project, model_cfg.get("location", "global"))
-            self.client = AsyncOpenAI(api_key=token, base_url=base, timeout=120)
+            # A self-deployed Model Garden endpoint (e.g. Llama 3.1 on vLLM) has its own URL, which
+            # scripts/vertex_deploy_run_teardown.sh exports in `base_url_env`; otherwise use MaaS.
+            base = os.environ.get(model_cfg["base_url_env"]) if model_cfg.get("base_url_env") else None
+            if model_cfg.get("base_url_env") and not base:
+                raise SystemExit(f"Missing endpoint URL: set {model_cfg['base_url_env']} (deploy the endpoint first)")
+            timeout = 300 if base else 120   # one self-hosted replica queues requests under load
+            http_client = None
+            if model_cfg.get("raw_predict"):
+                # Partner models (e.g. Mistral) are not on the openapi endpoint; they take the same
+                # OpenAI-style body at publishers/<publisher>/models/<model>:rawPredict.
+                # The client class comes from the OpenAI SDK, not from `import httpx`: the SDK is built
+                # on httpx2, and plain httpx is not one of this project's requirements (it is only
+                # present where Jupyter happens to be installed, so the import fails in a clean install).
+                from openai import DefaultAsyncHttpxClient
+
+                loc = model_cfg["location"]
+                base = (f"https://{loc}-aiplatform.googleapis.com/v1/projects/{project}/locations/{loc}"
+                        f"/publishers/{model_cfg['raw_predict']}/models/{self.model}")
+
+                async def _to_raw_predict(request):
+                    if request.url.path.endswith("/chat/completions"):
+                        request.url = request.url.copy_with(
+                            path=request.url.path[: -len("/chat/completions")] + ":rawPredict")
+
+                http_client = DefaultAsyncHttpxClient(event_hooks={"request": [_to_raw_predict]}, timeout=timeout)
+            base = base or vertex_openai_base_url(project, model_cfg.get("location", "global"))
+            self.client = AsyncOpenAI(api_key=token, base_url=base, timeout=timeout, http_client=http_client,
+                                      **sdk_retries)
         elif self.provider == "openai":
             from openai import AsyncOpenAI
 
@@ -83,16 +133,22 @@ class LLM:
             key = os.environ.get(key_env)
             if not key:
                 raise SystemExit(f"Missing API key: set {key_env} in .env")
-            self.client = AsyncOpenAI(api_key=key, base_url=model_cfg.get("base_url") or None, timeout=120)
+            self.client = AsyncOpenAI(api_key=key, base_url=model_cfg.get("base_url") or None, timeout=120,
+                                      **sdk_retries)
         else:
             raise SystemExit(f"Unknown provider '{self.provider}' for model {self.model}")
 
     async def chat(self, messages, tools=None, tool_choice=None, temperature=0.0, max_tokens=400,
                    response_format=None) -> dict:
         if self.backend is not None:
-            return await self._retry(lambda: self.backend.create(
-                messages, tools=tools, tool_choice=tool_choice, temperature=temperature,
-                max_tokens=max_tokens, response_format=response_format))
+            async def backend_call():
+                if self.pacer:
+                    await self.pacer.wait()
+                return await self.backend.create(
+                    messages, tools=tools, tool_choice=tool_choice, temperature=temperature,
+                    max_tokens=max_tokens, response_format=response_format)
+
+            return await self._retry(backend_call)
         kwargs = dict(model=self.model, messages=messages, temperature=temperature, max_tokens=max_tokens)
         if tools:
             kwargs["tools"] = tools
@@ -104,6 +160,8 @@ class LLM:
             kwargs["extra_body"] = self.extra_body
 
         async def call():
+            if self.pacer:
+                await self.pacer.wait()
             return _normalize(await self.client.chat.completions.create(**kwargs))
 
         return await self._retry(call)

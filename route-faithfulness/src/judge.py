@@ -128,21 +128,48 @@ def build_messages(claim, document, question, answer, others=None, target_label=
     return [{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": user}]
 
 
+def _nested_code(obj, depth: int = 0) -> tuple[str, str] | None:
+    """Find {"code": ..., "rationale": ...} in a parsed judge reply: at the top, in a nested object, or in
+    a string that itself holds JSON. gpt-oss sometimes answers {"final": "{\\"code\\": \\"B1\\", ...}"};
+    without the string case that valid label was dropped as unparseable."""
+    if depth > 3:
+        return None
+    if isinstance(obj, str):
+        try:
+            obj = json.loads(obj)
+        except json.JSONDecodeError:
+            return None
+    if isinstance(obj, dict):
+        code = str(obj.get("code", "")).strip().upper()
+        if code in CODES:
+            return code, str(obj.get("rationale", ""))
+        obj = list(obj.values())
+    if isinstance(obj, list):
+        for v in obj:
+            hit = _nested_code(v, depth + 1)
+            if hit:
+                return hit
+    return None
+
+
+# "code": "B1", also with the quotes escaped (a reply nested in a string, possibly cut off).
+CODE_RE = re.compile(r'\\*"code\\*"\s*:\s*\\*"([A-Za-z0-9]+)\\*"')
+
+
 def parse_code(text: str) -> tuple[str | None, str]:
     try:
         obj = json.loads(text)
-        code = str(obj.get("code", "")).strip().upper() if isinstance(obj, dict) else ""
-        if code in CODES:
-            return code, str(obj.get("rationale", ""))
-        # Valid JSON but no top-level code, e.g. gpt-oss's {"final": {"code": ..., "rationale": ...}}
-        m = re.search(r'"code"\s*:\s*"([A-Za-z0-9]+)"', text)
-        code = m.group(1).upper() if m else None
-        why = re.search(r'"rationale"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
-        return (code if code in CODES else None), (why.group(1) if why else text[:200])
     except json.JSONDecodeError:
-        m = re.search(r'"code"\s*:\s*"([A-Za-z0-9]+)"', text) or re.search(r"\b(B[1-8]|O|E)\b", text)
+        m = CODE_RE.search(text) or re.search(r"\b(B[1-8]|O|E)\b", text)
         code = m.group(1).upper() if m else None
         return (code if code in CODES else None), text[:200]
+    hit = _nested_code(obj)
+    if hit:
+        return hit
+    m = CODE_RE.search(text)
+    code = m.group(1).upper() if m else None
+    why = re.search(r'"rationale"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+    return (code if code in CODES else None), (why.group(1) if why else text[:200])
 
 
 async def judge_one(llm: LLM, claim, document, question, answer, max_tokens=300,
